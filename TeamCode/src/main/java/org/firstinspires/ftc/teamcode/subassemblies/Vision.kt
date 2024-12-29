@@ -1,16 +1,15 @@
 package org.firstinspires.ftc.teamcode.subassemblies
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.OpMode
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName
-import org.firstinspires.ftc.vision.VisionPortal
-import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor
 import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.PtzControl
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit
 import org.firstinspires.ftc.teamcode.util.DashOpMode
 import org.firstinspires.ftc.teamcode.util.log
+import org.firstinspires.ftc.vision.VisionPortal
 import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor
 
 class Vision(opMode: OpMode) {
     private val hardwareMap = opMode.hardwareMap

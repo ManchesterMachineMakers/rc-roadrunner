@@ -1,82 +1,66 @@
-@file:Suppress("MemberVisibilityCanBePrivate")
 package org.firstinspires.ftc.teamcode.subassemblies
 
-import com.acmerobotics.dashboard.config.Config
 import com.qualcomm.robotcore.eventloop.opmode.OpMode
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple
+import com.qualcomm.robotcore.hardware.Gamepad
 import org.firstinspires.ftc.teamcode.util.Subassembly
+import kotlin.math.PI
+import kotlin.math.roundToInt
 
 class LinearSlide(opMode: OpMode): Subassembly(opMode, "Linear Slide") {
 
-    val leftSlide = hardwareMap.dcMotor.get("left_slide") as DcMotorEx
-    val rightSlide = hardwareMap.dcMotor.get("right_slide") as DcMotorEx
-    val slides = arrayOf(leftSlide, rightSlide)
+    val linearSlide = hardwareMap.dcMotor.get("linear_slide") as DcMotorEx
     val pinion = hardwareMap.servo.get("carter's_opinion")
 
-    var slidePosition = 0.0
-        set(value) {
-            slides.forEach { it.targetPosition = (value * slideEncoderTicks / slideGearCircumference).toInt() }
-            field = value
-        }
-        get() = slides.map { it.power }.average() / slideEncoderTicks * slideGearCircumference
-
-    var slidePower = 0.0
-        set(value) {
-            slides.forEach { it.power = value }
-            field = value
-        }
-        get() = slides.map { it.power }.average()
-
-    var pinionPosition = 0.0
-        set(value) {
-            pinion.position = value * servoRangeOfMotion / pinionGearCircumference
-            field = value
-        }
-        get() = pinion.position / servoRangeOfMotion * pinionGearCircumference
-
-    var pinionPower = 0.0
-        set(value) {
-            pinion.position += (value * pinionSpeedCoefficient)
-            field = value
-        }
-
     init {
-        leftSlide.direction = DcMotorSimple.Direction.REVERSE
-//        rightSlide.direction = DcMotorSimple.Direction.REVERSE
-//        pinion.direction = DcMotorSimple.Direction.REVERSE
+        linearSlide.direction = DcMotorSimple.Direction.REVERSE
+        linearSlide.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+        linearSlide.mode = DcMotor.RunMode.RUN_USING_ENCODER
 
-        leftSlide.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
-        rightSlide.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+//        pinion.direction = Servo.Direction.REVERSE
     }
 
     /**
-     * Set the position of the linear slide and pinion
-     * based on the x and y coordinates of the robot
-     * the origin is at the bottom center of the robot
+     * Uses the left stick of the provided gamepad
+     */
+    fun control(gamepad: Gamepad) {
+        pinion.position += gamepad.left_stick_x * servoCoefficient
+        linearSlide.power = -gamepad.left_stick_y.toDouble()
+    }
+
+    /**
+     * Sets the position of the claw assembly
+     * the origin of x is the center of the robot
+     * the origin of y is the bottom of the robot
      *
-     * @param x the target x coordinate with 0 being the center of the robot in CM
-     * @param y the target y coordinate with 0 being the bottom of the robot in CM
+     * @param x in mm
+     * @param y in mm
      */
     fun setPosition(x: Double, y: Double) {
-        slidePosition = x
-        pinionPosition = y
+        xPosition = x
+        yPosition = y
     }
 
-    fun control(x: Float, y: Float) {
-        slidePower = y.toDouble()
-        pinionPower = x.toDouble()
-    }
+    var xPosition = 0.0
+        set(value) {
+            pinion.position = value / (servoGearDiameter * PI) * (360/300)
+            field = value
+        }
+        get() = pinion.position * (300/360) * (servoGearDiameter * PI)
 
-    @Config
+    var yPosition
+        set(value) {
+            linearSlide.targetPosition = (value / (motorGearDiameter * PI) * motorEncoderRes).roundToInt()
+        }
+        get() = linearSlide.currentPosition * (motorGearDiameter * PI) / motorEncoderRes
+
     companion object {
-        @JvmField var slideEncoderTicks = 384.5 // PPR at output shaft
-        @JvmField var slideGearDiameter = 4.0 // cm
-        var slideGearCircumference = slideGearDiameter * Math.PI
-        @JvmField var servoRangeOfMotion = 300.0 // degrees
-        @JvmField var pinionGearDiameter = 2.0 // cm
-        var pinionGearCircumference = pinionGearDiameter * Math.PI
-        @JvmField var pinionSpeedCoefficient = 0.5 // this should be the highest value that cause the pinion to overshoot
+        @JvmField var motorEncoderRes = 4800.0
+        @JvmField var motorGearDiameter = 39.0 // mm
+
+        @JvmField var servoCoefficient = 0.003 // this value should be the highest possible without the pinion overshooting it's controls
+        @JvmField var servoGearDiameter = 18.0 // mm
     }
 }

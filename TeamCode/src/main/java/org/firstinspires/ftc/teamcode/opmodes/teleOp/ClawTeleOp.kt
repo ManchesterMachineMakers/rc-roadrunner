@@ -1,21 +1,21 @@
-package org.firstinspires.ftc.teamcode.opmodes
+package org.firstinspires.ftc.teamcode.opmodes.teleOp
 
-import com.qualcomm.robotcore.eventloop.opmode.Disabled
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.util.ElapsedTime
-import org.firstinspires.ftc.teamcode.subassemblies.TankDriveBase
+import org.firstinspires.ftc.teamcode.subassemblies.Claw
+import org.firstinspires.ftc.teamcode.subassemblies.MecDriveBase
 import org.firstinspires.ftc.teamcode.util.log
 
-@Disabled
-@TeleOp(name = "Tank TeleOp", group = "special")
-class TankTeleOp : LinearOpMode() {
+@TeleOp(name = "Claw TeleOp", group = "main")
+class ClawTeleOp: LinearOpMode() {
 
     override fun runOpMode() {
         // init, no movement allowed
         telemetry.isAutoClear = false
 
-        val driveBase = TankDriveBase(this)
+        val driveBase = MecDriveBase(this)
+        val claw = Claw(this)
         // add other subassemblies here
 
         val loopTime = ElapsedTime()
@@ -37,6 +37,7 @@ class TankTeleOp : LinearOpMode() {
 
                 // Subassembly control
                 driveBase.control(gamepad1)
+                claw.control(gamepad2)
                 // control other subassemblies here
 
                 telemetry.addData("Loop Time", loopTime.time())
