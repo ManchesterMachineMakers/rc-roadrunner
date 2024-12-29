@@ -5,7 +5,9 @@ import androidx.annotation.NonNull;
 import com.acmerobotics.dashboard.canvas.Canvas;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
-import com.acmerobotics.roadrunner.*;
+import com.acmerobotics.roadrunner.AccelConstraint;
+import com.acmerobotics.roadrunner.Action;
+import com.acmerobotics.roadrunner.Actions;
 import com.acmerobotics.roadrunner.AngularVelConstraint;
 import com.acmerobotics.roadrunner.DualNum;
 import com.acmerobotics.roadrunner.HolonomicController;
@@ -14,13 +16,20 @@ import com.acmerobotics.roadrunner.MinVelConstraint;
 import com.acmerobotics.roadrunner.MotorFeedforward;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.Pose2dDual;
+import com.acmerobotics.roadrunner.PoseVelocity2d;
+import com.acmerobotics.roadrunner.PoseVelocity2dDual;
 import com.acmerobotics.roadrunner.ProfileAccelConstraint;
+import com.acmerobotics.roadrunner.ProfileParams;
+import com.acmerobotics.roadrunner.Rotation2d;
 import com.acmerobotics.roadrunner.Time;
 import com.acmerobotics.roadrunner.TimeTrajectory;
 import com.acmerobotics.roadrunner.TimeTurn;
 import com.acmerobotics.roadrunner.TrajectoryActionBuilder;
+import com.acmerobotics.roadrunner.TrajectoryBuilderParams;
 import com.acmerobotics.roadrunner.TurnConstraints;
 import com.acmerobotics.roadrunner.Twist2dDual;
+import com.acmerobotics.roadrunner.Vector2d;
+import com.acmerobotics.roadrunner.Vector2dDual;
 import com.acmerobotics.roadrunner.VelConstraint;
 import com.acmerobotics.roadrunner.ftc.DownsampledWriter;
 import com.acmerobotics.roadrunner.ftc.Encoder;
@@ -34,7 +43,6 @@ import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
@@ -45,8 +53,8 @@ import org.firstinspires.ftc.teamcode.roadrunner.messages.DriveCommandMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.MecanumCommandMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.MecanumLocalizerInputsMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.PoseMessage;
+import org.firstinspires.ftc.teamcode.subassemblies.MecDriveBase;
 
-import java.lang.Math;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -105,7 +113,7 @@ public class MecanumDrive {
     public final AccelConstraint defaultAccelConstraint =
             new ProfileAccelConstraint(PARAMS.minProfileAccel, PARAMS.maxProfileAccel);
 
-    public final DcMotorEx leftFront, leftBack, rightBack, rightFront;
+    public final DcMotorEx leftFront, leftRear, rightRear, rightFront;
 
     public final VoltageSensor voltageSensor;
 
@@ -122,30 +130,31 @@ public class MecanumDrive {
     private final DownsampledWriter mecanumCommandWriter = new DownsampledWriter("MECANUM_COMMAND", 50_000_000);
 
     public class DriveLocalizer implements Localizer {
-        public final Encoder leftFront, leftBack, rightBack, rightFront;
+        public final Encoder leftFront, leftRear, rightRear, rightFront;
         public final IMU imu;
 
         private double lastLeftFrontPos, lastLeftBackPos, lastRightBackPos, lastRightFrontPos;
         private Rotation2d lastHeading;
         private boolean initialized;
 
+        // for encoders, we don't need this because we're using the OTOS
         public DriveLocalizer() {
             leftFront = new OverflowEncoder(new RawEncoder(MecanumDrive.this.leftFront));
-            leftBack = new OverflowEncoder(new RawEncoder(MecanumDrive.this.leftBack));
-            rightBack = new OverflowEncoder(new RawEncoder(MecanumDrive.this.rightBack));
+            leftRear = new OverflowEncoder(new RawEncoder(MecanumDrive.this.leftRear));
+            rightRear = new OverflowEncoder(new RawEncoder(MecanumDrive.this.rightRear));
             rightFront = new OverflowEncoder(new RawEncoder(MecanumDrive.this.rightFront));
 
             imu = lazyImu.get();
 
-            // TODO: reverse encoders if needed
+            // reverse encoders if needed
             //   leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
         }
 
         @Override
         public Twist2dDual<Time> update() {
             PositionVelocityPair leftFrontPosVel = leftFront.getPositionAndVelocity();
-            PositionVelocityPair leftBackPosVel = leftBack.getPositionAndVelocity();
-            PositionVelocityPair rightBackPosVel = rightBack.getPositionAndVelocity();
+            PositionVelocityPair leftBackPosVel = leftRear.getPositionAndVelocity();
+            PositionVelocityPair rightBackPosVel = rightRear.getPositionAndVelocity();
             PositionVelocityPair rightFrontPosVel = rightFront.getPositionAndVelocity();
 
             YawPitchRollAngles angles = imu.getRobotYawPitchRollAngles();
@@ -214,20 +223,16 @@ public class MecanumDrive {
             module.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
         }
 
-        leftFront = hardwareMap.get(DcMotorEx.class, "left_front");
-        leftBack = hardwareMap.get(DcMotorEx.class, "left_rear");
-        rightBack = hardwareMap.get(DcMotorEx.class, "right_rear");
-        rightFront = hardwareMap.get(DcMotorEx.class, "right_front");
+        MecDriveBase driveBase = new MecDriveBase(null, hardwareMap);
 
-        leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftFront = driveBase.getLeftFront();
+        leftRear = driveBase.getLeftRear();
+        rightRear = driveBase.getRightRear();
+        rightFront = driveBase.getRightFront();
 
-        rightFront.setDirection(DcMotorSimple.Direction.REVERSE);
-        rightBack.setDirection(DcMotorSimple.Direction.REVERSE);
+        driveBase.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // TODO: make sure your config has an IMU with this name (can be BNO or BHI)
+        // make sure your config has an IMU with this name (can be BNO or BHI)
         //   see https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/index.html
         lazyImu = new LazyImu(hardwareMap, "imu", new RevHubOrientationOnRobot(
                 PARAMS.logoFacingDirection, PARAMS.usbFacingDirection));
@@ -249,8 +254,8 @@ public class MecanumDrive {
         }
 
         leftFront.setPower(wheelVels.leftFront.get(0) / maxPowerMag);
-        leftBack.setPower(wheelVels.leftBack.get(0) / maxPowerMag);
-        rightBack.setPower(wheelVels.rightBack.get(0) / maxPowerMag);
+        leftRear.setPower(wheelVels.leftBack.get(0) / maxPowerMag);
+        rightRear.setPower(wheelVels.rightBack.get(0) / maxPowerMag);
         rightFront.setPower(wheelVels.rightFront.get(0) / maxPowerMag);
     }
 
@@ -287,8 +292,8 @@ public class MecanumDrive {
 
             if (t >= timeTrajectory.duration) {
                 leftFront.setPower(0);
-                leftBack.setPower(0);
-                rightBack.setPower(0);
+                leftRear.setPower(0);
+                rightRear.setPower(0);
                 rightFront.setPower(0);
 
                 return false;
@@ -320,8 +325,8 @@ public class MecanumDrive {
             ));
 
             leftFront.setPower(leftFrontPower);
-            leftBack.setPower(leftBackPower);
-            rightBack.setPower(rightBackPower);
+            leftRear.setPower(leftBackPower);
+            rightRear.setPower(rightBackPower);
             rightFront.setPower(rightFrontPower);
 
             p.put("x", pose.position.x);
@@ -379,8 +384,8 @@ public class MecanumDrive {
 
             if (t >= turn.duration) {
                 leftFront.setPower(0);
-                leftBack.setPower(0);
-                rightBack.setPower(0);
+                leftRear.setPower(0);
+                rightRear.setPower(0);
                 rightFront.setPower(0);
 
                 return false;
@@ -411,8 +416,8 @@ public class MecanumDrive {
             ));
 
             leftFront.setPower(feedforward.compute(wheelVels.leftFront) / voltage);
-            leftBack.setPower(feedforward.compute(wheelVels.leftBack) / voltage);
-            rightBack.setPower(feedforward.compute(wheelVels.rightBack) / voltage);
+            leftRear.setPower(feedforward.compute(wheelVels.leftBack) / voltage);
+            rightRear.setPower(feedforward.compute(wheelVels.rightBack) / voltage);
             rightFront.setPower(feedforward.compute(wheelVels.rightFront) / voltage);
 
             Canvas c = p.fieldOverlay();

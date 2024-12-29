@@ -5,13 +5,14 @@ import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior
 import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple
 import com.qualcomm.robotcore.hardware.Gamepad
+import com.qualcomm.robotcore.hardware.HardwareMap
 import org.firstinspires.ftc.teamcode.util.Subassembly
 import org.firstinspires.ftc.teamcode.util.log
 import org.firstinspires.ftc.teamcode.util.powerCurve
 import kotlin.math.abs
 import kotlin.math.max
 
-class MecDriveBase(opMode: OpMode) : Subassembly(opMode, "Mecanum Drive Base") {
+class MecDriveBase(opMode: OpMode?, hardwareMap: HardwareMap = opMode!!.hardwareMap) : Subassembly(opMode, "Mecanum Drive Base") {
 
     val leftFront = hardwareMap.dcMotor.get("left_front") as DcMotorEx
     val rightFront = hardwareMap.dcMotor.get("right_front") as DcMotorEx
@@ -28,7 +29,7 @@ class MecDriveBase(opMode: OpMode) : Subassembly(opMode, "Mecanum Drive Base") {
         rightRear.direction = DcMotorSimple.Direction.REVERSE
 
 
-        opMode.log("DriveBase successfully initialized")
+        opMode?.log("DriveBase successfully initialized")
     }
 
 

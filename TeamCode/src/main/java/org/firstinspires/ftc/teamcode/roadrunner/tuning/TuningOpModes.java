@@ -60,8 +60,8 @@ public final class TuningOpModes {
 
                 List<Encoder> leftEncs = new ArrayList<>(), rightEncs = new ArrayList<>();
                 List<Encoder> parEncs = new ArrayList<>(), perpEncs = new ArrayList<>();
-                parEncs.add(new OtosEncoder(od.otos,false,false, od.leftBack));
-                perpEncs.add(new OtosEncoder(od.otos,true,false, od.leftBack));
+                parEncs.add(new OtosEncoder(od.otos,false,false, od.leftRear));
+                perpEncs.add(new OtosEncoder(od.otos,true,false, od.leftRear));
 
                 return new DriveView(
                         DriveType.MECANUM,
@@ -72,11 +72,11 @@ public final class TuningOpModes {
                         hardwareMap.getAll(LynxModule.class),
                         Arrays.asList(
                                 od.leftFront,
-                                od.leftBack
+                                od.leftRear
                         ),
                         Arrays.asList(
                                 od.rightFront,
-                                od.rightBack
+                                od.rightRear
                         ),
                         leftEncs,
                         rightEncs,
@@ -98,9 +98,9 @@ public final class TuningOpModes {
                 if (md.localizer instanceof MecanumDrive.DriveLocalizer) {
                     MecanumDrive.DriveLocalizer dl = (MecanumDrive.DriveLocalizer) md.localizer;
                     leftEncs.add(dl.leftFront);
-                    leftEncs.add(dl.leftBack);
+                    leftEncs.add(dl.leftRear);
                     rightEncs.add(dl.rightFront);
-                    rightEncs.add(dl.rightBack);
+                    rightEncs.add(dl.rightRear);
                 } else if (md.localizer instanceof ThreeDeadWheelLocalizer) {
                     ThreeDeadWheelLocalizer dl = (ThreeDeadWheelLocalizer) md.localizer;
                     parEncs.add(dl.par0);
@@ -123,11 +123,11 @@ public final class TuningOpModes {
                         hardwareMap.getAll(LynxModule.class),
                         Arrays.asList(
                                 md.leftFront,
-                                md.leftBack
+                                md.leftRear
                         ),
                         Arrays.asList(
                                 md.rightFront,
-                                md.rightBack
+                                md.rightRear
                         ),
                         leftEncs,
                         rightEncs,
